@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Голосовые Курочки</title>
+    <title>Rudy</title>
     <style>
         body {
             margin: 0;
@@ -26,32 +26,34 @@
             z-index: 100;
         }
 
+        /* Зеленые кнопки с белым текстом */
         .btn {
             padding: 10px 20px;
-            background-color: #ff9800;
-            color: white;
+            background-color: #4CAF50; /* Зеленый цвет */
+            color: #ffffff; /* Белый текст */
             text-decoration: none;
             font-weight: bold;
             border-radius: 5px;
-            border: 2px solid #e65100;
+            border: 2px solid #2E7D32; /* Темно-зеленая рамка */
             transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
         .btn:hover {
-            background-color: #e65100;
+            background-color: #45a049;
             transform: scale(1.05);
         }
 
-        /* Курочки */
-        .chicken {
+        /* Картинки Rudy */
+        .rudy {
             position: absolute;
-            width: 80px; /* Размер курочки */
+            width: 70px; /* Размер картинки */
             bottom: 0;
+            left: 0;
             will-change: transform;
-            transition: transform 0.1s ease-out;
         }
 
-        /* Стартовый экран для запроса микрофона */
+        /* Стартовый экран */
         #start-screen {
             position: absolute;
             top: 0;
@@ -65,17 +67,23 @@
             z-index: 200;
             flex-direction: column;
             color: white;
+            text-align: center;
         }
 
         #start-btn {
             padding: 15px 30px;
             font-size: 24px;
             cursor: pointer;
-            background-color: #4CAF50;
+            background-color: #4CAF50; /* Тоже зеленая кнопка */
             color: white;
-            border: none;
+            border: 2px solid #2E7D32;
             border-radius: 10px;
             margin-top: 20px;
+            font-weight: bold;
+        }
+
+        #start-btn:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -83,9 +91,9 @@
 
     <!-- Стартовый экран -->
     <div id="start-screen">
-        <h1>Управление голосом!</h1>
-        <p>Говори тихо — курочки дрожат. Говори громче — взлетают. Кричи — кукарекает петух!</p>
-        <button id="start-btn">Включить микрофон и начать</button>
+        <h1>Управление голосом: Эффект Попкорна!</h1>
+        <p>Говори тихо — слегка подпрыгивают. Говори громко — разлетаются как попкорн во все стороны. Кричи — петух!</p>
+        <button id="start-btn">Включить микрофон</button>
     </div>
 
     <!-- Верхние кнопки -->
@@ -94,10 +102,10 @@
         <a href="https://www.facebook.com/chaloapps.chaloapps" target="_blank" class="btn">Facebook</a>
     </div>
 
-    <!-- Контейнер для курочек -->
+    <!-- Контейнер для картинок -->
     <div id="game-area"></div>
 
-    <!-- Звук петуха (используется открытый файл из сети) -->
+    <!-- Звук петуха -->
     <audio id="rooster-sound" src="https://assets.mixkit.co/active_storage/sfx/223/223-preview.mp3"></audio>
 
     <script>
@@ -106,33 +114,35 @@
         const gameArea = document.getElementById('game-area');
         const roosterSound = document.getElementById('rooster-sound');
 
-        const NUM_CHICKENS = 30; // Количество курочек
-        const chickens = [];
+        const NUM_IMAGES = 80; // Сделали МНОГО картинок
+        const rudys = [];
         
         let audioContext, analyser, microphone, dataArray;
         let isRoosterPlaying = false;
 
-        // Создаем курочек
-        function spawnChickens() {
-            for (let i = 0; i < NUM_CHICKENS; i++) {
+        // Создаем картинки
+        function spawnRudys() {
+            for (let i = 0; i < NUM_IMAGES; i++) {
                 let img = document.createElement('img');
-                img.src = 'chicken.jpg'; // ИМЯ ФАЙЛА ТВОЕЙ КАРТИНКИ
-                img.className = 'chicken';
+                img.src = 'Rudy.png'; // ИМЯ ФАЙЛА ТВОЕЙ КАРТИНКИ
+                img.className = 'rudy';
                 
-                // Случайная позиция по горизонтали
-                let x = Math.random() * (window.innerWidth - 80);
+                // Начальная случайная позиция по горизонтали
+                let startX = Math.random() * (window.innerWidth - 70);
                 
-                // Объект для физики
-                let chickenData = {
+                // Физические параметры для каждой картинки отдельно (эффект попкорна)
+                let rudyData = {
                     element: img,
-                    x: x,
-                    y: 0, // 0 - это земля (bottom)
-                    vy: 0 // скорость по вертикали
+                    x: startX,
+                    y: 0, // 0 - земля
+                    vx: 0, // горизонтальная скорость (влево/вправо)
+                    vy: 0, // вертикальная скорость (вверх/вниз)
+                    rotation: Math.random() * 360, // текущий угол поворота
+                    rotSpeed: 0 // скорость вращения
                 };
                 
-                img.style.left = `${x}px`;
                 gameArea.appendChild(img);
-                chickens.push(chickenData);
+                rudys.push(rudyData);
             }
         }
 
@@ -148,9 +158,9 @@
                 analyser.fftSize = 256;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 
-                startScreen.style.display = 'none'; // Убираем стартовый экран
-                spawnChickens();
-                update(); // Запускаем цикл анимации
+                startScreen.style.display = 'none'; // Убираем экран
+                spawnRudys();
+                update(); // Запускаем физику
                 
             } catch (err) {
                 alert('Не удалось получить доступ к микрофону! Разрешите доступ в настройках браузера.');
@@ -160,7 +170,7 @@
 
         startBtn.addEventListener('click', initAudio);
 
-        // Главный цикл анимации
+        // Главный цикл физики и анимации
         function update() {
             requestAnimationFrame(update);
 
@@ -172,8 +182,8 @@
             }
             volume = volume / dataArray.length; // Средняя громкость от 0 до ~100+
 
-            // Логика звука петуха (очень громко)
-            if (volume > 80 && !isRoosterPlaying) {
+            // Логика звука петуха (крик)
+            if (volume > 85 && !isRoosterPlaying) {
                 isRoosterPlaying = true;
                 roosterSound.play();
                 roosterSound.onended = () => {
@@ -181,40 +191,72 @@
                 };
             }
 
-            // Логика движения курочек
-            chickens.forEach(c => {
-                let flutterX = 0;
-                let flutterY = 0;
-
-                // Если говорим тихо (дрожание/легкий взлет)
+            // Физика для каждой картинки отдельно
+            rudys.forEach(r => {
+                
+                // ---- ЭФФЕКТ ПОПКОРНА ОТ ЗВУКА ----
+                
                 if (volume > 15 && volume <= 40) {
-                    flutterX = (Math.random() - 0.5) * 10;
-                    c.vy += 1; // Слегка подкидываем
+                    // Тихо говорим: легкое хаотичное подпрыгивание (срабатывает не у всех сразу, чтобы было вразнобой)
+                    if (Math.random() > 0.8) {
+                        r.vy += Math.random() * 4; // Прыжок вверх
+                        r.vx += (Math.random() - 0.5) * 6; // Сдвиг влево-вправо
+                        r.rotSpeed = (Math.random() - 0.5) * 10; // Легкое вращение
+                    }
                 } 
-                // Если говорим громко (сильный взлет)
                 else if (volume > 40) {
-                    flutterX = (Math.random() - 0.5) * 20;
-                    c.vy += volume * 0.1; // Сильнее подкидываем
+                    // Громко говорим: сильный взрыв попкорна
+                    if (Math.random() > 0.4) {
+                        r.vy += Math.random() * (volume * 0.15); // Чем громче, тем сильнее случайный прыжок
+                        r.vx += (Math.random() - 0.5) * (volume * 0.4); // Сильный разлет по сторонам
+                        r.rotSpeed = (Math.random() - 0.5) * 30; // Сильное вращение
+                    }
                 }
 
-                // Гравитация (курочка всегда падает вниз)
-                c.vy -= 2; 
-                c.y += c.vy;
+                // ---- ГРАВИТАЦИЯ И ДВИЖЕНИЕ ----
+                
+                r.vy -= 1.2; // Гравитация тянет вниз
+                r.x += r.vx; // Применяем скорость по X
+                r.y += r.vy; // Применяем скорость по Y
+                r.rotation += r.rotSpeed; // Крутим картинку
 
-                // Ограничитель пола
-                if (c.y < 0) {
-                    c.y = 0;
-                    c.vy = 0;
+                // Трение о воздух (чтобы по горизонтали они постепенно останавливались)
+                r.vx *= 0.98;
+                r.rotSpeed *= 0.98;
+
+                // ---- СТОЛКНОВЕНИЯ ----
+
+                // Столкновение с полом (отскок)
+                if (r.y <= 0) {
+                    r.y = 0;
+                    r.vy = r.vy * -0.3; // Пружинят от пола
+                    r.vx *= 0.8; // Трение об пол (быстрее останавливаются по горизонтали)
+                    
+                    // Если скорость отскока совсем маленькая — останавливаем, чтобы не дрожали
+                    if (Math.abs(r.vy) < 2) {
+                        r.vy = 0;
+                    }
                 }
 
-                // Ограничитель потолка (чтобы не улетали бесконечно)
-                if (c.y > window.innerHeight - 100) {
-                    c.y = window.innerHeight - 100;
-                    c.vy = 0;
+                // Столкновение со стенами (отскок от левого и правого края)
+                if (r.x <= 0) {
+                    r.x = 0;
+                    r.vx = r.vx * -0.7; // Отскок от левой стены
+                }
+                if (r.x >= window.innerWidth - 70) {
+                    r.x = window.innerWidth - 70;
+                    r.vx = r.vx * -0.7; // Отскок от правой стены
                 }
 
-                // Применяем позицию
-                c.element.style.transform = `translate(${flutterX}px, -${c.y + flutterY}px)`;
+                // Столкновение с потолком (чтобы не улетали в космос)
+                if (r.y >= window.innerHeight - 100) {
+                    r.y = window.innerHeight - 100;
+                    r.vy = r.vy * -0.5; // Отбиваются от потолка
+                }
+
+                // ---- ОТРИСОВКА ----
+                // Применяем все вычисленные координаты и углы к картинке на экране
+                r.element.style.transform = `translate(${r.x}px, -${r.y}px) rotate(${r.rotation}deg)`;
             });
         }
     </script>
