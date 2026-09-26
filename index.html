@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Голосовые Курочки</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* Цвет неба */
+            font-family: Arial, sans-serif;
+        }
+
+        /* Верхняя панель с кнопками */
+        #top-bar {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            padding: 15px 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #ff9800;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 5px;
+            border: 2px solid #e65100;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #e65100;
+            transform: scale(1.05);
+        }
+
+        /* Курочки */
+        .chicken {
+            position: absolute;
+            width: 80px; /* Размер курочки */
+            bottom: 0;
+            will-change: transform;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Стартовый экран для запроса микрофона */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            flex-direction: column;
+            color: white;
+        }
+
+        #start-btn {
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Стартовый экран -->
+    <div id="start-screen">
+        <h1>Управление голосом!</h1>
+        <p>Говори тихо — курочки дрожат. Говори громче — взлетают. Кричи — кукарекает петух!</p>
+        <button id="start-btn">Включить микрофон и начать</button>
+    </div>
+
+    <!-- Верхние кнопки -->
+    <div id="top-bar">
+        <a href="mailto:8gravitygames@gmail.com" class="btn">Contact with developer</a>
+        <a href="https://www.facebook.com/chaloapps.chaloapps" target="_blank" class="btn">Facebook</a>
+    </div>
+
+    <!-- Контейнер для курочек -->
+    <div id="game-area"></div>
+
+    <!-- Звук петуха (используется открытый файл из сети) -->
+    <audio id="rooster-sound" src="https://assets.mixkit.co/active_storage/sfx/223/223-preview.mp3"></audio>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        const gameArea = document.getElementById('game-area');
+        const roosterSound = document.getElementById('rooster-sound');
+
+        const NUM_CHICKENS = 30; // Количество курочек
+        const chickens = [];
+        
+        let audioContext, analyser, microphone, dataArray;
+        let isRoosterPlaying = false;
+
+        // Создаем курочек
+        function spawnChickens() {
+            for (let i = 0; i < NUM_CHICKENS; i++) {
+                let img = document.createElement('img');
+                img.src = 'chicken.jpg'; // ИМЯ ФАЙЛА ТВОЕЙ КАРТИНКИ
+                img.className = 'chicken';
+                
+                // Случайная позиция по горизонтали
+                let x = Math.random() * (window.innerWidth - 80);
+                
+                // Объект для физики
+                let chickenData = {
+                    element: img,
+                    x: x,
+                    y: 0, // 0 - это земля (bottom)
+                    vy: 0 // скорость по вертикали
+                };
+                
+                img.style.left = `${x}px`;
+                gameArea.appendChild(img);
+                chickens.push(chickenData);
+            }
+        }
+
+        // Инициализация микрофона
+        async function initAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                startScreen.style.display = 'none'; // Убираем стартовый экран
+                spawnChickens();
+                update(); // Запускаем цикл анимации
+                
+            } catch (err) {
+                alert('Не удалось получить доступ к микрофону! Разрешите доступ в настройках браузера.');
+                console.error(err);
+            }
+        }
+
+        startBtn.addEventListener('click', initAudio);
+
+        // Главный цикл анимации
+        function update() {
+            requestAnimationFrame(update);
+
+            // Получаем громкость звука
+            analyser.getByteFrequencyData(dataArray);
+            let volume = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                volume += dataArray[i];
+            }
+            volume = volume / dataArray.length; // Средняя громкость от 0 до ~100+
+
+            // Логика звука петуха (очень громко)
+            if (volume > 80 && !isRoosterPlaying) {
+                isRoosterPlaying = true;
+                roosterSound.play();
+                roosterSound.onended = () => {
+                    isRoosterPlaying = false;
+                };
+            }
+
+            // Логика движения курочек
+            chickens.forEach(c => {
+                let flutterX = 0;
+                let flutterY = 0;
+
+                // Если говорим тихо (дрожание/легкий взлет)
+                if (volume > 15 && volume <= 40) {
+                    flutterX = (Math.random() - 0.5) * 10;
+                    c.vy += 1; // Слегка подкидываем
+                } 
+                // Если говорим громко (сильный взлет)
+                else if (volume > 40) {
+                    flutterX = (Math.random() - 0.5) * 20;
+                    c.vy += volume * 0.1; // Сильнее подкидываем
+                }
+
+                // Гравитация (курочка всегда падает вниз)
+                c.vy -= 2; 
+                c.y += c.vy;
+
+                // Ограничитель пола
+                if (c.y < 0) {
+                    c.y = 0;
+                    c.vy = 0;
+                }
+
+                // Ограничитель потолка (чтобы не улетали бесконечно)
+                if (c.y > window.innerHeight - 100) {
+                    c.y = window.innerHeight - 100;
+                    c.vy = 0;
+                }
+
+                // Применяем позицию
+                c.element.style.transform = `translate(${flutterX}px, -${c.y + flutterY}px)`;
+            });
+        }
+    </script>
+</body>
+</html>
